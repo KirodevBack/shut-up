@@ -45,11 +45,6 @@ impl Config {
         let base = Self::base();
         format!(
             "\
-# Configuration de shut-up
-# Chaque [section] devient une entree du menu \"Shut it up\".
-# processes = noms des executables, sans .exe, majuscules ignorees.
-# refresh_seconds = intervalle de reapplication (minimum 5).
-
 refresh_seconds = {refresh}
 trim_memory = {trim}
 restore_on_exit = {restore}
