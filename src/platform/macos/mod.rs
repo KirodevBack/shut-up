@@ -1,3 +1,4 @@
+mod cache;
 pub mod process;
 mod tray;
 

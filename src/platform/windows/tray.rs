@@ -1,4 +1,4 @@
-use super::{process, wide};
+use super::{cache, process, wide};
 use crate::app::App;
 use crate::platform::{app_id, app_name, Labels};
 use std::ffi::c_void;
@@ -16,6 +16,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 enum Command {
     Quit,
     ToggleAll,
+    ClearCache,
     Toggle(usize),
 }
 
@@ -28,6 +29,7 @@ impl Command {
         match self {
             Command::Quit => 1,
             Command::ToggleAll => 2,
+            Command::ClearCache => 3,
             Command::Toggle(index) => Self::first_target_id() + index,
         }
     }
@@ -36,6 +38,7 @@ impl Command {
         match id {
             1 => Some(Command::Quit),
             2 => Some(Command::ToggleAll),
+            3 => Some(Command::ClearCache),
             id if id >= Self::first_target_id() => Some(Command::Toggle(id - Self::first_target_id())),
             _ => None,
         }
@@ -83,7 +86,8 @@ impl TrayWindow {
         let targets = CreatePopupMenu();
         for (index, target) in app.targets().iter().enumerate() {
             let flags = MF_STRING | check_flag(app.is_enabled(index));
-            append(targets, flags, Command::Toggle(index).id(), &target.name);
+            let label = self.labels.target(&target.name, app.is_running(index));
+            append(targets, flags, Command::Toggle(index).id(), &label);
         }
         AppendMenuW(targets, MF_SEPARATOR, 0, null());
         let all = MF_STRING | check_flag(app.all_enabled());
@@ -91,12 +95,14 @@ impl TrayWindow {
 
         let root = CreatePopupMenu();
         append(root, MF_POPUP, targets as usize, self.labels.submenu);
+        append(root, MF_STRING, Command::ClearCache.id(), self.labels.clear_cache);
         AppendMenuW(root, MF_SEPARATOR, 0, null());
         append(root, MF_STRING, Command::Quit.id(), self.labels.quit);
         root
     }
 
     unsafe fn show_menu(&self, window: HWND) {
+        self.app.refresh_running();
         let menu = self.build_menu();
 
         let mut cursor: POINT = zeroed();
@@ -112,6 +118,7 @@ impl TrayWindow {
                 DestroyWindow(window);
             }
             Some(Command::ToggleAll) => self.app.toggle_all(),
+            Some(Command::ClearCache) => cache::ask_and_clear(window, &self.labels),
             Some(Command::Toggle(index)) => self.app.toggle(index),
             None => {}
         }

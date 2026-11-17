@@ -86,6 +86,12 @@ processes = opera
 
 [Vivaldi]
 processes = vivaldi
+
+[Claude]
+processes = claude
+
+[Visual Studio Code]
+processes = code
 ",
             refresh = base.refresh_interval.as_secs(),
             trim = base.trim_memory,

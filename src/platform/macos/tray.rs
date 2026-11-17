@@ -1,13 +1,15 @@
+use super::cache;
 use crate::app::App;
 use crate::platform::{app_name, Labels};
 use objc2::rc::Retained;
-use objc2::runtime::{AnyObject, Sel};
+use objc2::runtime::{AnyObject, ProtocolObject, Sel};
 use objc2::{define_class, msg_send, sel, AllocAnyThread, DefinedClass, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSControlStateValueOff, NSControlStateValueOn,
-    NSImage, NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
+    NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSApplication, NSApplicationActivationPolicy,
+    NSControlStateValueOff, NSControlStateValueOn, NSImage, NSMenu, NSMenuDelegate, NSMenuItem,
+    NSStatusBar, NSStatusItem, NSVariableStatusItemLength,
 };
-use objc2_foundation::{NSData, NSObject, NSSize, NSString};
+use objc2_foundation::{NSData, NSObject, NSObjectProtocol, NSSize, NSString};
 use std::cell::OnceCell;
 
 pub struct Ivars {
@@ -27,19 +29,35 @@ define_class!(
         #[unsafe(method(toggleTarget:))]
         fn toggle_target(&self, sender: &NSMenuItem) {
             self.ivars().app.toggle(sender.tag() as usize);
-            self.refresh_menu();
         }
 
         #[unsafe(method(toggleAll:))]
         fn toggle_all(&self, _sender: &NSMenuItem) {
             self.ivars().app.toggle_all();
-            self.refresh_menu();
+        }
+
+        #[unsafe(method(clearCache:))]
+        fn clear_cache(&self, _sender: &NSMenuItem) {
+            if self.confirm_clear_cache() {
+                cache::clear(&self.ivars().labels);
+            }
         }
 
         #[unsafe(method(quit:))]
         fn quit(&self, _sender: &NSMenuItem) {
             self.ivars().app.shutdown();
             std::process::exit(0);
+        }
+    }
+
+    unsafe impl NSObjectProtocol for MenuController {}
+
+    unsafe impl NSMenuDelegate for MenuController {
+        #[unsafe(method(menuNeedsUpdate:))]
+        fn menu_needs_update(&self, menu: &NSMenu) {
+            self.ivars().app.refresh_running();
+            menu.removeAllItems();
+            self.fill_menu(menu);
         }
     }
 );
@@ -80,14 +98,15 @@ impl MenuController {
         item
     }
 
-    fn build_menu(&self) -> Retained<NSMenu> {
+    fn fill_menu(&self, root: &NSMenu) {
         let mtm = self.mtm();
         let ivars = self.ivars();
         let app = ivars.app;
 
         let targets = NSMenu::new(mtm);
         for (index, target) in app.targets().iter().enumerate() {
-            let item = self.checked_item(&target.name, sel!(toggleTarget:), app.is_enabled(index));
+            let label = ivars.labels.target(&target.name, app.is_running(index));
+            let item = self.checked_item(&label, sel!(toggleTarget:), app.is_enabled(index));
             item.setTag(index as isize);
             targets.addItem(&item);
         }
@@ -98,17 +117,22 @@ impl MenuController {
         let submenu = self.item(ivars.labels.submenu, None);
         submenu.setSubmenu(Some(&targets));
 
-        let root = NSMenu::new(mtm);
         root.addItem(&submenu);
+        root.addItem(&self.item(ivars.labels.clear_cache, Some(sel!(clearCache:))));
         root.addItem(&NSMenuItem::separatorItem(mtm));
         root.addItem(&self.item(ivars.labels.quit, Some(sel!(quit:))));
-        root
     }
 
-    fn refresh_menu(&self) {
-        if let Some(status_item) = self.ivars().status_item.get() {
-            status_item.setMenu(Some(&self.build_menu()));
-        }
+    fn confirm_clear_cache(&self) -> bool {
+        let mtm = self.mtm();
+        NSApplication::sharedApplication(mtm).activate();
+        let alert = NSAlert::new(mtm);
+        alert.setAlertStyle(NSAlertStyle::Warning);
+        alert.setMessageText(&NSString::from_str(self.ivars().labels.clear_cache));
+        alert.setInformativeText(&NSString::from_str(self.ivars().labels.clear_cache_warning));
+        alert.addButtonWithTitle(&NSString::from_str("Continuer"));
+        alert.addButtonWithTitle(&NSString::from_str("Annuler"));
+        alert.runModal() == NSAlertFirstButtonReturn
     }
 
     fn install_status_item(&self) {
@@ -124,8 +148,11 @@ impl MenuController {
             button.setToolTip(Some(&NSString::from_str(app_name())));
         }
 
+        let menu = NSMenu::new(mtm);
+        menu.setDelegate(Some(ProtocolObject::from_ref(self)));
+        self.fill_menu(&menu);
+        status_item.setMenu(Some(&menu));
         let _ = self.ivars().status_item.set(status_item);
-        self.refresh_menu();
     }
 }
 

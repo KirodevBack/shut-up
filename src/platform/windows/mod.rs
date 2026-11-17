@@ -1,3 +1,4 @@
+mod cache;
 pub mod process;
 mod tray;
 mod wide;
@@ -40,6 +41,10 @@ impl Drop for SingleInstance {
 }
 
 pub fn run(app: &'static App) {
+    if std::env::args().any(|arg| arg == cache::elevated_flag()) {
+        cache::clear_elevated();
+        return;
+    }
     let Some(_guard) = SingleInstance::acquire() else {
         return;
     };

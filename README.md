@@ -52,6 +52,12 @@ measured on my pc with task manager, ram of all the processes added up:
 it depends on what they're doing (in a call discord takes back the ram it needs), so your numbers won't be the same.
 shut up itself sits at around 350 kb.
 
+## clean cached ram
+
+there's also **vider la ram en cache** in the menu. it empties the ram your system keeps in cache (the standby list on windows, the page cache on linux, `purge` on macos) so it shows up as free again.
+
+it asks for admin rights, and right after it some stuff can stutter for a few seconds while it loads back what it needs. don't do it while you're in game.
+
 ## download
 
 everything is on the [releases](../../releases/latest) page.
@@ -69,7 +75,11 @@ on first launch a `config.ini` is created in `%APPDATA%\shut-up` (`~/.config/shu
 - `restore_on_exit`: puts everything back to normal when you quit.
 - `[Discord]`, `[Spotify]`, `[LibreWolf]`...: each section is an entry in the menu, `processes` is the list of exe names.
 
-out of the box you get discord, spotify, librewolf, firefox, chrome, edge, brave, opera and vivaldi. remove the sections you don't use if you want a shorter menu.
+out of the box you get discord, spotify, librewolf, firefox, chrome, edge, brave, opera, vivaldi, claude and visual studio code. remove the sections you don't use if you want a shorter menu.
+
+if an app isn't running or isn't installed, it shows up in the menu with a ⚠ next to it. you can still tick it, it'll kick in as soon as you open the app.
+
+careful with visual studio code: its exe is just `code.exe`, so make sure no other app you use runs as `code.exe` too, or it'll get shut up as well.
 
 want to shut up another app? add a section:
 

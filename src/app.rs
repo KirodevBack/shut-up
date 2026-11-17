@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub struct App {
     config: Config,
     enabled: AtomicU32,
+    running: AtomicU32,
 }
 
 impl App {
@@ -14,6 +15,7 @@ impl App {
         Box::leak(Box::new(App {
             config,
             enabled: AtomicU32::new(enabled),
+            running: AtomicU32::new(0),
         }))
     }
 
@@ -42,6 +44,15 @@ impl App {
         self.mask() >> index & 1 == 1
     }
 
+    pub fn is_running(&self, index: usize) -> bool {
+        self.running.load(Ordering::Relaxed) >> index & 1 == 1
+    }
+
+    pub fn refresh_running(&self) {
+        let running = self.scan(0, false);
+        self.running.store(running, Ordering::Relaxed);
+    }
+
     pub fn all_enabled(&self) -> bool {
         self.mask() == self.all_mask()
     }
@@ -55,7 +66,8 @@ impl App {
     }
 
     pub fn enforce(&self) {
-        self.apply(self.mask(), true);
+        let running = self.scan(self.mask(), true);
+        self.running.store(running, Ordering::Relaxed);
     }
 
     pub fn shutdown(&self) {
@@ -76,19 +88,26 @@ impl App {
     }
 
     fn apply(&self, mask: u32, efficient: bool) {
-        if mask == 0 {
-            return;
+        if mask != 0 {
+            self.scan(mask, efficient);
         }
+    }
+
+    fn scan(&self, mask: u32, efficient: bool) -> u32 {
         let trim = efficient && self.config.trim_memory;
+        let mut running = 0;
         process::for_each(|pid, name| {
-            let hit = self
+            let hits = self
                 .targets()
                 .iter()
                 .enumerate()
-                .any(|(i, t)| mask >> i & 1 == 1 && t.matches(name));
-            if hit {
+                .filter(|(_, t)| t.matches(name))
+                .fold(0, |bits, (i, _)| bits | 1 << i);
+            running |= hits;
+            if hits & mask != 0 {
                 process::set_efficiency(pid, efficient, trim);
             }
         });
+        running
     }
 }

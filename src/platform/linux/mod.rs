@@ -1,3 +1,4 @@
+mod cache;
 pub mod process;
 mod tray;
 
@@ -17,7 +18,7 @@ pub fn run(app: &'static App) {
     process::make_current_efficient();
     app.enforce();
 
-    let _tray = match tray::spawn(app) {
+    let tray = match tray::spawn(app) {
         Ok(handle) => handle,
         Err(err) => {
             eprintln!("{}: impossible d'afficher l'icone ({err})", app_id());
@@ -28,5 +29,6 @@ pub fn run(app: &'static App) {
     loop {
         thread::sleep(app.config().refresh_interval);
         app.enforce();
+        tray.update(|_| {});
     }
 }

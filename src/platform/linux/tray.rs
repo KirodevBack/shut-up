@@ -1,3 +1,4 @@
+use super::cache;
 use crate::app::App;
 use crate::platform::{app_id, app_name, Labels};
 use ksni::blocking::{Handle, TrayMethods};
@@ -6,7 +7,7 @@ use ksni::{Error, Icon, MenuItem, ToolTip, Tray};
 
 pub struct ShutUpTray {
     app: &'static App,
-    labels: Labels,
+    labels: &'static Labels,
 }
 
 impl ShutUpTray {
@@ -18,7 +19,7 @@ impl ShutUpTray {
             .enumerate()
             .map(|(index, target)| {
                 CheckmarkItem {
-                    label: target.name.clone(),
+                    label: self.labels.target(&target.name, self.app.is_running(index)),
                     checked: self.app.is_enabled(index),
                     activate: Box::new(move |tray: &mut Self| tray.app.toggle(index)),
                     ..Default::default()
@@ -65,11 +66,21 @@ impl Tray for ShutUpTray {
         ]
     }
 
+    fn menu_about_to_show(&mut self) {
+        self.app.refresh_running();
+    }
+
     fn menu(&self) -> Vec<MenuItem<Self>> {
         vec![
             SubMenu {
                 label: self.labels.submenu.into(),
                 submenu: self.target_items(),
+                ..Default::default()
+            }
+            .into(),
+            StandardItem {
+                label: self.labels.clear_cache.into(),
+                activate: Box::new(|tray: &mut Self| cache::ask_and_clear(tray.labels)),
                 ..Default::default()
             }
             .into(),
@@ -98,7 +109,7 @@ fn pixmap(size: i32, argb: &[u8]) -> Icon {
 pub fn spawn(app: &'static App) -> Result<Handle<ShutUpTray>, Error> {
     ShutUpTray {
         app,
-        labels: Labels::default(),
+        labels: Box::leak(Box::new(Labels::default())),
     }
     .spawn()
 }
