@@ -1,4 +1,5 @@
 mod cache;
+mod dialog;
 pub mod process;
 mod tray;
 
@@ -21,7 +22,7 @@ pub fn run(app: &'static App) {
     let tray = match tray::spawn(app) {
         Ok(handle) => handle,
         Err(err) => {
-            eprintln!("{}: impossible d'afficher l'icone ({err})", app_id());
+            eprintln!("{}: can't show the tray icon ({err})", app_id());
             std::process::exit(1);
         }
     };

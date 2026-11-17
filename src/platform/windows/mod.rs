@@ -1,4 +1,5 @@
 mod cache;
+mod dialog;
 pub mod process;
 mod tray;
 mod wide;

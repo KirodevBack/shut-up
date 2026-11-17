@@ -54,9 +54,9 @@ shut up itself sits at around 350 kb.
 
 ## clean cached ram
 
-there's also **vider la ram en cache** in the menu. it empties the ram your system keeps in cache (the standby list on windows, the page cache on linux, `purge` on macos) so it shows up as free again.
+there's also **clean cached ram** in the menu. it empties the ram your system keeps in cache (the standby list on windows, the page cache on linux, `purge` on macos) so it shows up as free again.
 
-it asks for admin rights, and right after it some stuff can stutter for a few seconds while it loads back what it needs. don't do it while you're in game.
+a popup warns you first: it asks for admin rights, and right after it some stuff can stutter for a few seconds while it loads back what it needs. don't do it while you're in game.
 
 ## download
 
@@ -77,7 +77,9 @@ on first launch a `config.ini` is created in `%APPDATA%\shut-up` (`~/.config/shu
 
 out of the box you get discord, spotify, librewolf, firefox, chrome, edge, brave, opera, vivaldi, claude and visual studio code. remove the sections you don't use if you want a shorter menu.
 
-if an app isn't running or isn't installed, it shows up in the menu with a ⚠ next to it. you can still tick it, it'll kick in as soon as you open the app.
+if you tick an app that isn't running or isn't installed, a popup tells you. it stays ticked and kicks in as soon as you open the app.
+
+when an update adds new apps, shut up adds them to your `config.ini` on its own and keeps your changes. if you delete a section it won't come back.
 
 careful with visual studio code: its exe is just `code.exe`, so make sure no other app you use runs as `code.exe` too, or it'll get shut up as well.
 

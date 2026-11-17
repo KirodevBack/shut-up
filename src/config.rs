@@ -107,16 +107,68 @@ processes = code
         let Some(path) = Self::path() else {
             return Self::default();
         };
+        let defaults = Self::default();
         match fs::read_to_string(&path) {
-            Ok(text) => Self::from_user_text(&text),
+            Ok(text) => {
+                let text = text.trim_start_matches('\u{feff}').to_owned();
+                let upgraded = Self::upgrade(&text, &defaults);
+                if upgraded != text {
+                    let _ = fs::write(&path, &upgraded);
+                }
+                remember_defaults(&defaults.targets);
+                Self::from_user_text(&upgraded)
+            }
             Err(_) => {
                 if let Some(dir) = path.parent() {
                     let _ = fs::create_dir_all(dir);
                 }
                 let _ = fs::write(&path, Self::default_text());
-                Self::default()
+                remember_defaults(&defaults.targets);
+                defaults
             }
         }
+    }
+
+    fn upgrade(text: &str, defaults: &Config) -> String {
+        let default_text = Self::default_text();
+        let user_keys: Vec<&str> = global_lines(text).filter_map(key_of).collect();
+        let missing_keys: Vec<&str> = global_lines(&default_text)
+            .filter(|line| key_of(line).is_some_and(|key| !user_keys.contains(&key)))
+            .collect();
+
+        let mut upgraded = text.to_owned();
+        if !missing_keys.is_empty() {
+            let block: String = missing_keys.iter().map(|line| format!("{line}\n")).collect();
+            let first_section = upgraded
+                .match_indices('[')
+                .map(|(at, _)| at)
+                .find(|&at| at == 0 || upgraded[..at].ends_with('\n'));
+            upgraded = match first_section {
+                Some(at) => {
+                    let head = upgraded[..at].trim_end();
+                    let gap = if head.is_empty() { "" } else { "\n" };
+                    format!("{head}{gap}{block}\n{}", &upgraded[at..])
+                }
+                None => format!("{block}{upgraded}"),
+            };
+        }
+
+        let sections = section_names(text);
+        let seen = seen_defaults();
+        let is_known = |name: &str| {
+            sections.iter().chain(&seen).any(|known| known.eq_ignore_ascii_case(name))
+        };
+        for target in defaults.targets.iter().filter(|t| !is_known(&t.name)) {
+            if !upgraded.is_empty() && !upgraded.ends_with('\n') {
+                upgraded.push('\n');
+            }
+            upgraded.push_str(&format!(
+                "\n[{}]\nprocesses = {}\n",
+                target.name,
+                target.processes.join(", ")
+            ));
+        }
+        upgraded
     }
 
     fn from_user_text(text: &str) -> Self {
@@ -175,6 +227,50 @@ processes = code
         config.targets.retain(|t| !t.processes.is_empty());
         config.targets.truncate(App::capacity());
         config
+    }
+}
+
+fn global_lines(text: &str) -> impl Iterator<Item = &str> {
+    text.lines().take_while(|line| !line.trim_start().starts_with('['))
+}
+
+fn key_of(line: &str) -> Option<&str> {
+    let line = line.trim();
+    if line.starts_with('#') || line.starts_with(';') {
+        return None;
+    }
+    line.split_once('=').map(|(key, _)| key.trim())
+}
+
+fn section_names(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| line.trim().strip_prefix('[')?.strip_suffix(']'))
+        .map(|name| name.trim().to_owned())
+        .collect()
+}
+
+fn seen_path() -> Option<PathBuf> {
+    platform::config_dir().map(|dir| dir.join("defaults-seen"))
+}
+
+fn seen_defaults() -> Vec<String> {
+    seen_path()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .map(|text| text.lines().map(|line| line.trim().to_owned()).collect())
+        .unwrap_or_default()
+}
+
+fn remember_defaults(targets: &[Target]) {
+    let Some(path) = seen_path() else { return };
+    let mut names = seen_defaults();
+    for target in targets {
+        if !names.iter().any(|name| name.eq_ignore_ascii_case(&target.name)) {
+            names.push(target.name.clone());
+        }
+    }
+    let text: String = names.iter().map(|name| format!("{name}\n")).collect();
+    if fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
+        let _ = fs::write(path, text);
     }
 }
 

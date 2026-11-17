@@ -1,4 +1,4 @@
-use super::cache;
+use super::{cache, dialog};
 use crate::app::App;
 use crate::platform::{app_id, app_name, Labels};
 use ksni::blocking::{Handle, TrayMethods};
@@ -11,6 +11,12 @@ pub struct ShutUpTray {
 }
 
 impl ShutUpTray {
+    fn warn_not_running(&self, names: Vec<&str>) {
+        if let Some(text) = self.labels.not_running_message(&names) {
+            std::thread::spawn(move || dialog::warn(&text));
+        }
+    }
+
     fn target_items(&self) -> Vec<MenuItem<Self>> {
         let mut items: Vec<MenuItem<Self>> = self
             .app
@@ -19,9 +25,9 @@ impl ShutUpTray {
             .enumerate()
             .map(|(index, target)| {
                 CheckmarkItem {
-                    label: self.labels.target(&target.name, self.app.is_running(index)),
+                    label: target.name.clone(),
                     checked: self.app.is_enabled(index),
-                    activate: Box::new(move |tray: &mut Self| tray.app.toggle(index)),
+                    activate: Box::new(move |tray: &mut Self| tray.warn_not_running(tray.app.toggle(index))),
                     ..Default::default()
                 }
                 .into()
@@ -33,7 +39,7 @@ impl ShutUpTray {
             CheckmarkItem {
                 label: self.labels.toggle_all.into(),
                 checked: self.app.all_enabled(),
-                activate: Box::new(|tray: &mut Self| tray.app.toggle_all()),
+                activate: Box::new(|tray: &mut Self| tray.warn_not_running(tray.app.toggle_all())),
                 ..Default::default()
             }
             .into(),
@@ -64,10 +70,6 @@ impl Tray for ShutUpTray {
             pixmap(32, include_bytes!(concat!(env!("OUT_DIR"), "/tray-32.argb"))),
             pixmap(48, include_bytes!(concat!(env!("OUT_DIR"), "/tray-48.argb"))),
         ]
-    }
-
-    fn menu_about_to_show(&mut self) {
-        self.app.refresh_running();
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {

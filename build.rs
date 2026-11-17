@@ -31,7 +31,7 @@ PRODUCTVERSION {numeric},0
 BEGIN
   BLOCK "StringFileInfo"
   BEGIN
-    BLOCK "040C04B0"
+    BLOCK "040904B0"
     BEGIN
       VALUE "FileDescription", "Shut up"
       VALUE "Comments", "{description}"
@@ -43,7 +43,7 @@ BEGIN
   END
   BLOCK "VarFileInfo"
   BEGIN
-    VALUE "Translation", 0x040C, 1200
+    VALUE "Translation", 0x0409, 1200
   END
 END
 "#
@@ -61,7 +61,7 @@ fn write_tray_pixmaps(png: &Path, out: &Path) {
     let mut reader = decoder.read_info().unwrap();
     let mut rgba = vec![0; reader.output_buffer_size().unwrap()];
     let info = reader.next_frame(&mut rgba).unwrap();
-    assert_eq!(info.color_type, png::ColorType::Rgba, "le logo doit etre en RGBA");
+    assert_eq!(info.color_type, png::ColorType::Rgba, "the logo has to be RGBA");
 
     for size in [22, 32, 48] {
         let argb = downscale(&rgba, info.width as usize, size);

@@ -28,12 +28,14 @@ define_class!(
     impl MenuController {
         #[unsafe(method(toggleTarget:))]
         fn toggle_target(&self, sender: &NSMenuItem) {
-            self.ivars().app.toggle(sender.tag() as usize);
+            let names = self.ivars().app.toggle(sender.tag() as usize);
+            self.warn_not_running(&names);
         }
 
         #[unsafe(method(toggleAll:))]
         fn toggle_all(&self, _sender: &NSMenuItem) {
-            self.ivars().app.toggle_all();
+            let names = self.ivars().app.toggle_all();
+            self.warn_not_running(&names);
         }
 
         #[unsafe(method(clearCache:))]
@@ -55,7 +57,6 @@ define_class!(
     unsafe impl NSMenuDelegate for MenuController {
         #[unsafe(method(menuNeedsUpdate:))]
         fn menu_needs_update(&self, menu: &NSMenu) {
-            self.ivars().app.refresh_running();
             menu.removeAllItems();
             self.fill_menu(menu);
         }
@@ -105,8 +106,7 @@ impl MenuController {
 
         let targets = NSMenu::new(mtm);
         for (index, target) in app.targets().iter().enumerate() {
-            let label = ivars.labels.target(&target.name, app.is_running(index));
-            let item = self.checked_item(&label, sel!(toggleTarget:), app.is_enabled(index));
+            let item = self.checked_item(&target.name, sel!(toggleTarget:), app.is_enabled(index));
             item.setTag(index as isize);
             targets.addItem(&item);
         }
@@ -123,6 +123,19 @@ impl MenuController {
         root.addItem(&self.item(ivars.labels.quit, Some(sel!(quit:))));
     }
 
+    fn warn_not_running(&self, names: &[&str]) {
+        let Some(text) = self.ivars().labels.not_running_message(names) else {
+            return;
+        };
+        let mtm = self.mtm();
+        NSApplication::sharedApplication(mtm).activate();
+        let alert = NSAlert::new(mtm);
+        alert.setAlertStyle(NSAlertStyle::Warning);
+        alert.setMessageText(&NSString::from_str(app_name()));
+        alert.setInformativeText(&NSString::from_str(&text));
+        alert.runModal();
+    }
+
     fn confirm_clear_cache(&self) -> bool {
         let mtm = self.mtm();
         NSApplication::sharedApplication(mtm).activate();
@@ -130,8 +143,8 @@ impl MenuController {
         alert.setAlertStyle(NSAlertStyle::Warning);
         alert.setMessageText(&NSString::from_str(self.ivars().labels.clear_cache));
         alert.setInformativeText(&NSString::from_str(self.ivars().labels.clear_cache_warning));
-        alert.addButtonWithTitle(&NSString::from_str("Continuer"));
-        alert.addButtonWithTitle(&NSString::from_str("Annuler"));
+        alert.addButtonWithTitle(&NSString::from_str(self.ivars().labels.continue_button));
+        alert.addButtonWithTitle(&NSString::from_str(self.ivars().labels.cancel_button));
         alert.runModal() == NSAlertFirstButtonReturn
     }
 

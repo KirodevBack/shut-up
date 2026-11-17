@@ -1,4 +1,4 @@
-use super::{cache, process, wide};
+use super::{cache, dialog, process, wide};
 use crate::app::App;
 use crate::platform::{app_id, app_name, Labels};
 use std::ffi::c_void;
@@ -86,8 +86,7 @@ impl TrayWindow {
         let targets = CreatePopupMenu();
         for (index, target) in app.targets().iter().enumerate() {
             let flags = MF_STRING | check_flag(app.is_enabled(index));
-            let label = self.labels.target(&target.name, app.is_running(index));
-            append(targets, flags, Command::Toggle(index).id(), &label);
+            append(targets, flags, Command::Toggle(index).id(), &target.name);
         }
         AppendMenuW(targets, MF_SEPARATOR, 0, null());
         let all = MF_STRING | check_flag(app.all_enabled());
@@ -102,7 +101,6 @@ impl TrayWindow {
     }
 
     unsafe fn show_menu(&self, window: HWND) {
-        self.app.refresh_running();
         let menu = self.build_menu();
 
         let mut cursor: POINT = zeroed();
@@ -117,12 +115,18 @@ impl TrayWindow {
             Some(Command::Quit) => {
                 DestroyWindow(window);
             }
-            Some(Command::ToggleAll) => self.app.toggle_all(),
+            Some(Command::ToggleAll) => self.warn_not_running(window, &self.app.toggle_all()),
             Some(Command::ClearCache) => cache::ask_and_clear(window, &self.labels),
-            Some(Command::Toggle(index)) => self.app.toggle(index),
+            Some(Command::Toggle(index)) => self.warn_not_running(window, &self.app.toggle(index)),
             None => {}
         }
         process::trim_current();
+    }
+
+    fn warn_not_running(&self, window: HWND, names: &[&str]) {
+        if let Some(text) = self.labels.not_running_message(names) {
+            dialog::show(window, &text, MB_OK | MB_ICONWARNING);
+        }
     }
 
     unsafe fn handle(&self, window: HWND, message: u32, lparam: LPARAM) -> Option<LRESULT> {

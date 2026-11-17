@@ -19,13 +19,13 @@ BrandingText "${APP} ${VERSION}"
 !define MUI_ICON "assets\shut-up.ico"
 !define MUI_UNICON "assets\shut-up.ico"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${EXE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Lancer ${APP}"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch ${APP}"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-!insertmacro MUI_LANGUAGE "French"
+!insertmacro MUI_LANGUAGE "English"
 
 Section "Install"
   nsExec::Exec 'taskkill /im ${EXE}'

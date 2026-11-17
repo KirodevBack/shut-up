@@ -1,5 +1,5 @@
-use super::wide;
-use crate::platform::{app_name, Labels};
+use super::{dialog, wide};
+use crate::platform::Labels;
 use std::ffi::c_void;
 use std::mem::{size_of, zeroed};
 use std::ptr::{null, null_mut};
@@ -11,7 +11,7 @@ use windows_sys::Win32::Security::{
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    MessageBoxW, IDOK, MB_ICONERROR, MB_ICONINFORMATION, MB_ICONWARNING, MB_OKCANCEL, SW_HIDE,
+    IDOK, MB_ICONERROR, MB_ICONINFORMATION, MB_ICONWARNING, MB_OKCANCEL, SW_HIDE,
 };
 
 #[link(name = "ntdll")]
@@ -23,14 +23,8 @@ pub fn elevated_flag() -> &'static str {
     "--clear-cache"
 }
 
-fn message(window: HWND, text: &str, style: u32) -> i32 {
-    let text = wide::null_terminated(text);
-    let title = wide::null_terminated(app_name());
-    unsafe { MessageBoxW(window, text.as_ptr(), title.as_ptr(), style) }
-}
-
 pub fn ask_and_clear(window: HWND, labels: &Labels) {
-    if message(window, labels.clear_cache_warning, MB_OKCANCEL | MB_ICONWARNING) != IDOK {
+    if dialog::show(window, labels.clear_cache_warning, MB_OKCANCEL | MB_ICONWARNING) != IDOK {
         return;
     }
     let Ok(exe) = std::env::current_exe() else { return };
@@ -83,8 +77,8 @@ pub fn clear_elevated() {
             && memory_list_command(purge_standby)
     };
     if done {
-        message(null_mut(), labels.clear_cache_done, MB_ICONINFORMATION);
+        dialog::show(null_mut(), labels.clear_cache_done, MB_ICONINFORMATION);
     } else {
-        message(null_mut(), labels.clear_cache_failed, MB_ICONERROR);
+        dialog::show(null_mut(), labels.clear_cache_failed, MB_ICONERROR);
     }
 }

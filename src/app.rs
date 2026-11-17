@@ -44,25 +44,16 @@ impl App {
         self.mask() >> index & 1 == 1
     }
 
-    pub fn is_running(&self, index: usize) -> bool {
-        self.running.load(Ordering::Relaxed) >> index & 1 == 1
-    }
-
-    pub fn refresh_running(&self) {
-        let running = self.scan(0, false);
-        self.running.store(running, Ordering::Relaxed);
-    }
-
     pub fn all_enabled(&self) -> bool {
         self.mask() == self.all_mask()
     }
 
-    pub fn toggle(&self, index: usize) {
-        self.set_mask(self.mask() ^ 1 << index);
+    pub fn toggle(&self, index: usize) -> Vec<&str> {
+        self.set_mask(self.mask() ^ 1 << index)
     }
 
-    pub fn toggle_all(&self) {
-        self.set_mask(if self.all_enabled() { 0 } else { self.all_mask() });
+    pub fn toggle_all(&self) -> Vec<&str> {
+        self.set_mask(if self.all_enabled() { 0 } else { self.all_mask() })
     }
 
     pub fn enforce(&self) {
@@ -76,20 +67,33 @@ impl App {
         }
     }
 
-    fn set_mask(&self, new: u32) {
+    fn set_mask(&self, new: u32) -> Vec<&str> {
         let old = self.enabled.swap(new, Ordering::Relaxed);
         let changed = old ^ new;
         if changed == 0 {
-            return;
+            return Vec::new();
         }
-        self.apply(changed & new, true);
+        let turned_on = changed & new;
+        self.apply(turned_on, true);
         self.apply(changed & !new, false);
         state::save(self.targets(), new);
+        self.not_running(turned_on)
+    }
+
+    fn not_running(&self, mask: u32) -> Vec<&str> {
+        let running = self.running.load(Ordering::Relaxed);
+        self.targets()
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| mask >> i & 1 == 1 && running >> i & 1 == 0)
+            .map(|(_, t)| t.name.as_str())
+            .collect()
     }
 
     fn apply(&self, mask: u32, efficient: bool) {
         if mask != 0 {
-            self.scan(mask, efficient);
+            let running = self.scan(mask, efficient);
+            self.running.store(running, Ordering::Relaxed);
         }
     }
 

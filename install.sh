@@ -18,4 +18,4 @@ if command -v setcap >/dev/null 2>&1; then
 fi
 pkill -x shut-up 2>/dev/null || true
 nohup "$BIN/shut-up" >/dev/null 2>&1 &
-echo "shut-up installe dans $BIN et lance au demarrage"
+echo "shut up installed in $BIN, it starts with your session"

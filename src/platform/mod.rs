@@ -25,38 +25,49 @@ pub struct Labels {
     pub submenu: &'static str,
     pub toggle_all: &'static str,
     pub quit: &'static str,
-    pub not_running: &'static str,
     pub clear_cache: &'static str,
     pub clear_cache_warning: &'static str,
     pub clear_cache_done: &'static str,
     pub clear_cache_failed: &'static str,
+    #[cfg(not(windows))]
+    pub continue_button: &'static str,
+    #[cfg(not(windows))]
+    pub cancel_button: &'static str,
 }
 
 impl Default for Labels {
     fn default() -> Self {
         Self {
             submenu: "Shut it up",
-            toggle_all: "Tout",
-            quit: "Quitter",
-            not_running: "pas lancé ou pas installé",
-            clear_cache: "Vider la RAM en cache",
-            clear_cache_warning: "Ça vide la RAM en cache de tout l'ordi pour la libérer.
-
-Certains trucs peuvent saccader quelques secondes juste après, c'est pas conseillé de le faire en jeu.
-
-Les droits administrateur vont être demandés. Continuer ?",
-            clear_cache_done: "RAM en cache vidée.",
-            clear_cache_failed: "Impossible de vider la RAM en cache.",
+            toggle_all: "All",
+            quit: "Quit",
+            clear_cache: "Clean cached RAM",
+            clear_cache_warning: "This empties the cached RAM of the whole computer to free it.\n\n\
+Some stuff can stutter for a few seconds right after, so it's not a good idea to do it while gaming.\n\n\
+Admin rights will be asked. Continue?",
+            clear_cache_done: "Cached RAM cleaned.",
+            clear_cache_failed: "Couldn't clean the cached RAM.",
+            #[cfg(not(windows))]
+            continue_button: "Continue",
+            #[cfg(not(windows))]
+            cancel_button: "Cancel",
         }
     }
 }
 
 impl Labels {
-    pub fn target(&self, name: &str, running: bool) -> String {
-        if running {
-            name.to_owned()
+    pub fn not_running_message(&self, names: &[&str]) -> Option<String> {
+        let (last, rest) = names.split_last()?;
+        let list = if rest.is_empty() {
+            last.to_string()
         } else {
-            format!("{name}   ⚠ {}", self.not_running)
-        }
+            format!("{} and {last}", rest.join(", "))
+        };
+        let verb = if rest.is_empty() {
+            "isn't running or isn't installed"
+        } else {
+            "aren't running or aren't installed"
+        };
+        Some(format!("{list} {verb}.\n\nIt'll get shut up as soon as you open it."))
     }
 }
