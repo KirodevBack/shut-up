@@ -13,7 +13,18 @@ pub struct Target {
 impl Target {
     pub fn matches(&self, process: &str) -> bool {
         let process = process.strip_suffix(".exe").unwrap_or(process);
-        self.processes.iter().any(|p| p.eq_ignore_ascii_case(process))
+        let helper_suffix = " helper";
+        self.processes.iter().any(|name| {
+            let same = process.eq_ignore_ascii_case(name);
+            let helper_end = name.len() + helper_suffix.len();
+            let helper = process
+                .get(..name.len())
+                .is_some_and(|start| start.eq_ignore_ascii_case(name))
+                && process
+                    .get(name.len()..helper_end)
+                    .is_some_and(|rest| rest.eq_ignore_ascii_case(helper_suffix));
+            same || helper
+        })
     }
 }
 
@@ -54,6 +65,27 @@ processes = discord, discordcanary, discordptb, vesktop
 
 [Spotify]
 processes = spotify
+
+[LibreWolf]
+processes = librewolf
+
+[Firefox]
+processes = firefox
+
+[Chrome]
+processes = chrome, google chrome
+
+[Edge]
+processes = msedge, microsoft edge
+
+[Brave]
+processes = brave, brave browser
+
+[Opera]
+processes = opera
+
+[Vivaldi]
+processes = vivaldi
 ",
             refresh = base.refresh_interval.as_secs(),
             trim = base.trim_memory,

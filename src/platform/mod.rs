@@ -8,6 +8,11 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use self::linux::{config_dir, process, run};
 
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use self::macos::{config_dir, process, run};
+
 pub fn app_id() -> &'static str {
     env!("CARGO_PKG_NAME")
 }

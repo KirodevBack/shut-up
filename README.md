@@ -1,6 +1,6 @@
 # ![logo](assets/shut-it-up-small.png) shut up
 
-shut up is a tiny tray app that puts discord and spotify in efficiency mode so they stop eating your ram and cpu in the background.
+shut up is a tiny tray app that puts discord, spotify and your browser in efficiency mode so they stop eating your ram and cpu in the background.
 right click the icon, go to **shut it up**, tick what you want to calm down. untick it (or quit) and everything goes back to normal.
 
 ## why
@@ -21,10 +21,12 @@ on windows it's the same thing as the "efficiency mode" button in task manager, 
 
 - priority goes to idle and ecoqos is turned on, so the cpu runs them slow and cool.
 - their memory priority is set to very low and their working set gets trimmed, so the ram is given back.
-- it checks again every 30 seconds, so new discord/spotify processes get caught too.
+- it checks again every 30 seconds, so new processes (like a new browser tab) get caught too.
 - your choice is saved, so it's applied again when your pc starts.
 
 on linux it does the same with `SCHED_IDLE`, nice 19, idle io priority and `process_madvise` to page the memory out.
+
+on macos it puts them in background mode (same as `taskpolicy -b`) with nice 20, so the cpu, disk and network go easy on them. macos doesn't let an app empty another app's ram, so there it's the cpu part only and the system compresses their memory on its own.
 
 ## how much does it save?
 
@@ -41,21 +43,33 @@ measured on my pc with task manager, ram of all the processes added up:
   <sub>discord with shut up on, i'm just sitting in a discord conversation and nothing more</sub>
 </p>
 
+<p align="center">
+  <img src="assets/discord-librewolf-shut-up.png" width="600" alt="discord at 133 mb and librewolf at 100 mb with shut up">
+  <br>
+  <sub>discord and librewolf with shut up on</sub>
+</p>
+
 it depends on what they're doing (in a call discord takes back the ram it needs), so your numbers won't be the same.
 shut up itself sits at around 350 kb.
 
 ## download
 
-grab `shut-up-setup.exe` from the [releases](../../releases/latest) page and run it. it installs for your user only (no admin), starts with windows and shows up in "installed apps" so you can remove it.
+everything is on the [releases](../../releases/latest) page.
+
+- **windows**: grab `shut-up-setup.exe` and run it. it installs for your user only (no admin), starts with windows and shows up in "installed apps" so you can remove it.
+- **macos**: grab `shut-up-macos.zip`, unzip it and drag `Shut up.app` to your applications folder. it lives in the menu bar and starts with your mac. the app isn't signed with an apple account, so the first time right click it and hit **open**.
+- **linux**: grab `shut-up-linux-x86_64`, or build it with the script below.
 
 ## configuration
 
-on first launch a `config.ini` is created in `%APPDATA%\shut-up` (or `~/.config/shut-up` on linux):
+on first launch a `config.ini` is created in `%APPDATA%\shut-up` (`~/.config/shut-up` on linux, `~/Library/Application Support/shut-up` on macos):
 
 - `refresh_seconds`: how often it applies the settings again (minimum 5).
 - `trim_memory`: empties their ram, turn it off if you only want the cpu part.
 - `restore_on_exit`: puts everything back to normal when you quit.
-- `[Discord]`, `[Spotify]`: each section is an entry in the menu, `processes` is the list of exe names.
+- `[Discord]`, `[Spotify]`, `[LibreWolf]`...: each section is an entry in the menu, `processes` is the list of exe names.
+
+out of the box you get discord, spotify, librewolf, firefox, chrome, edge, brave, opera and vivaldi. remove the sections you don't use if you want a shorter menu.
 
 want to shut up another app? add a section:
 
@@ -103,6 +117,16 @@ you need a desktop with a tray (kde, xfce, cinnamon, or gnome with the appindica
 ```
 
 it goes to `~/.local/bin`, starts with your session, and asks for sudo once to give it `cap_sys_nice` (needed to free the ram and put the priority back). `./uninstall.sh` removes it.
+
+## macos
+
+to build it yourself you need the xcode command line tools (`xcode-select --install`).
+
+```bash
+./macos/install.sh
+```
+
+it builds `Shut up.app`, puts it in `~/Applications` and opens it. `./macos/uninstall.sh` removes it.
 
 ## more
 

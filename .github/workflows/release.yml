@@ -41,10 +41,32 @@ jobs:
           name: linux
           path: target/release/shut-up-linux-x86_64
 
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: cargo build --release --locked --target aarch64-apple-darwin
+      - run: cargo build --release --locked --target x86_64-apple-darwin
+      - run: |
+          lipo -create -output target/shut-up-universal \
+            target/aarch64-apple-darwin/release/shut-up \
+            target/x86_64-apple-darwin/release/shut-up
+          chmod +x macos/bundle.sh
+          ./macos/bundle.sh target/shut-up-universal target
+          ditto -c -k --keepParent "target/Shut up.app" target/shut-up-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: target/shut-up-macos.zip
+
   publish:
-    needs: [windows, linux]
+    needs: [windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
@@ -53,4 +75,5 @@ jobs:
           files: |
             shut-up-setup.exe
             shut-up-linux-x86_64
-          generate_release_notes: true
+            shut-up-macos.zip
+          body_path: changelog/${{ github.ref_name }}.md
